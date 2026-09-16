@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>TAP X — Audio Edition</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Permanent+Marker&family=Plus+Jakarta+Sans:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #07090e;
+            --panel-border: rgba(255, 255, 255, 0.08);
+            --gold-main: #f5b000;
+            --gold-gradient: linear-gradient(135deg, #ffd700, #ff8c00);
+            --gold-glow: rgba(245, 176, 0, 0.4);
+            --text-main: #ffffff;
+            --text-sub: #7e8b9b;
+            --card-bg: rgba(22, 29, 43, 0.8);
+            --token-color: #00d2ff;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; font-family: 'Plus Jakarta Sans', sans-serif; }
+        body { background: var(--bg-color); color: var(--text-main); display: flex; justify-content: center; align-items: center; min-height: 100vh; overflow: hidden; }
+
+        .phone-frame {
+            width: 100vw; height: 100vh; max-width: 420px; max-height: 900px;
+            background: radial-gradient(circle at 50% 30%, #151a26 0%, #07090e 100%);
+            position: relative; display: flex; flex-direction: column; justify-content: space-between; overflow: hidden;
+        }
+
+        /* Шапка */
+        .top-bar { padding: 15px 15px 10px; display: flex; justify-content: space-between; align-items: center; z-index: 10; }
+        .user-profile { display: flex; align-items: center; gap: 8px; }
+        .avatar-box {
+            width: 38px; height: 38px; background: linear-gradient(135deg, #1c2433, #0d121a);
+            border-radius: 50%; border: 2px solid var(--gold-main); display: flex; justify-content: center;
+            align-items: center; overflow: hidden; font-size: 16px;
+        }
+        .avatar-box img { width: 100%; height: 100%; object-fit: cover; }
+        .username { font-weight: 800; font-size: 13px; max-width: 90px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        
+        .currencies-bar { display: flex; gap: 5px; align-items: center; }
+        .badge {
+            background: rgba(255, 255, 255, 0.05); border: 1px solid var(--panel-border);
+            border-radius: 16px; padding: 4px 8px; display: flex; align-items: center; gap: 4px; font-weight: 800; font-size: 11px;
+        }
+        .token-badge { border-color: rgba(0, 210, 255, 0.3); color: var(--token-color); }
+
+        /* Кнопка звука */
+        .audio-btn {
+            background: rgba(255, 255, 255, 0.08); border: 1px solid var(--panel-border);
+            border-radius: 50%; width: 32px; height: 32px; display: flex; justify-content: center;
+            align-items: center; cursor: pointer; font-size: 14px; margin-left: 2px;
+        }
+
+        /* Баланс */
+        .balance-section { text-align: center; margin-top: 5px; position: relative; }
+        .main-coins { font-size: 32px; font-weight: 900; display: flex; align-items: center; justify-content: center; gap: 8px; }
+        .coin-icon-img {
+            width: 30px; height: 30px; background: var(--gold-gradient); border-radius: 50%; display: flex; justify-content: center; align-items: center; color: #000; font-weight: 900; box-shadow: 0 0 15px var(--gold-glow);
+        }
+        .passive-income { font-size: 12px; color: #4cd964; font-weight: 700; margin-top: 2px; }
+        
+        /* Прогресс кристалла */
+        .milestone-container { margin: 10px 25px 0; }
+        .milestone-info { display: flex; justify-content: space-between; font-size: 10px; font-weight: 700; color: var(--text-sub); margin-bottom: 3px; }
+        .milestone-bar { width: 100%; height: 6px; background: rgba(255,255,255,0.08); border-radius: 3px; overflow: hidden; }
+        .milestone-fill { width: 0%; height: 100%; background: linear-gradient(90deg, #00d2ff, #9d00ff); transition: width 0.2s; }
+
+        /* Кликер */
+        .click-area { flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; position: relative; }
+        #coinCanvas { cursor: pointer; filter: drop-shadow(0 0 25px rgba(245, 176, 0, 0.35)); touch-action: manipulation; transition: transform 0.05s; }
+        #coinCanvas:active { transform: scale(0.93); }
+
+        /* Навигация */
+        .bottom-nav { background: rgba(10, 13, 20, 0.95); border-top: 1px solid var(--panel-border); padding: 10px 10px 20px; display: flex; justify-content: space-around; }
+        .nav-button { display: flex; flex-direction: column; align-items: center; gap: 4px; color: var(--text-sub); font-size: 10px; font-weight: 700; cursor: pointer; width: 25%; }
+        .nav-button.active { color: var(--gold-main); }
+        .nav-icon-bg { width: 38px; height: 28px; border-radius: 12px; display: flex; justify-content: center; align-items: center; font-size: 18px; }
+        .nav-button.active .nav-icon-bg { background: rgba(245, 176, 0, 0.15); }
+
+        /* Эффекты */
+        .float-num { position: absolute; font-weight: 900; font-size: 24px; color: var(--gold-main); text-shadow: 0 2px 10px rgba(0,0,0,0.8); pointer-events: none; animation: floatUp 0.8s ease-out forwards; z-index: 1000; }
+        @keyframes floatUp { 0% { opacity: 1; transform: translateY(0) scale(1); } 100% { opacity: 0; transform: translateY(-70px) scale(1.2); } }
+
+        /* Модальные окна */
+        .modal-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(7, 9, 14, 0.96); backdrop-filter: blur(15px); z-index: 500; display: none; flex-direction: column; padding: 30px 20px 20px; }
+        .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .modal-title { font-size: 18px; font-weight: 900; color: var(--gold-main); }
+        .close-btn { font-size: 22px; color: var(--text-sub); cursor: pointer; }
+        .modal-list { display: flex; flex-direction: column; gap: 12px; overflow-y: auto; flex: 1; }
+        
+        .card-item { background: var(--card-bg); border: 1px solid var(--panel-border); border-radius: 16px; padding: 14px; display: flex; justify-content: space-between; align-items: center; }
+        .item-btn { background: var(--gold-gradient); border: none; color: #000; font-weight: 900; padding: 10px 14px; border-radius: 10px; cursor: pointer; }
+        .item-btn:disabled { background: #2a3445; color: #5c6b80; cursor: not-allowed; }
+
+        /* Уведомление */
+        .toast {
+            position: absolute; top: 70px; left: 50%; transform: translateX(-50%) translateY(-20px);
+            background: linear-gradient(135deg, #00d2ff, #9d00ff); padding: 10px 20px; border-radius: 20px;
+            font-weight: 900; font-size: 13px; box-shadow: 0 0 20px rgba(157, 0, 255, 0.6);
+            opacity: 0; transition: all 0.4s ease; pointer-events: none; z-index: 2000;
+        }
+        .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+    </style>
+</head>
+<body>
+
+<div class="phone-frame">
+    <!-- Аудиопоток расслабляющей фоновой музыки -->
+    <audio id="bgMusic" loop preload="auto">
+        <source src="https://cdn.pixabay.com/download/audio/2022/05/27/audio_1808fbf07a.mp3" type="audio/mpeg">
+    </audio>
+
+    <div class="toast" id="toast">💎 Получено +<span id="toastGems">1</span> Кристалла!</div>
+
+    <!-- Шапка Профиля -->
+    <div class="top-bar">
+        <div class="user-profile">
+            <div class="avatar-box" id="userAvatar">👤</div>
+            <div class="username" id="userNameDisplay">Player</div>
+        </div>
+        <div class="currencies-bar">
+            <div class="badge">💎 <span id="gemsCount">0</span></div>
+            <div class="badge token-badge">⚡ <span id="tokensCount">0</span> TAPX</div>
+            <div class="audio-btn" id="audioToggleBtn" onclick="toggleAudio()">🔇</div>
+        </div>
+    </div>
+
+    <!-- Главный Баланс -->
+    <div class="balance-section">
+        <div class="main-coins"><div class="coin-icon-img">X</div><span id="coinsCount">0</span></div>
+        <div class="passive-income">+<span id="passiveRate">0</span> / sec</div>
+        
+        <div class="milestone-container">
+            <div class="milestone-info">
+                <span>Следующая награда: 💎 +<span id="nextGemsReward">1</span></span>
+                <span id="milestoneTargetText">1M</span>
+            </div>
+            <div class="milestone-bar">
+                <div class="milestone-fill" id="milestoneFill"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Кликер -->
+    <div class="click-area">
+        <canvas id="coinCanvas" width="230" height="230"></canvas>
+    </div>
+
+    <!-- Нижняя навигация -->
+    <div class="bottom-nav">
+        <div class="nav-button active" onclick="showModal('none')"><div class="nav-icon-bg">🏠</div>Главная</div>
+        <div class="nav-button" onclick="showModal('upgradeModal')"><div class="nav-icon-bg">⚡</div>Прокачка</div>
+        <div class="nav-button" onclick="showModal('shopModal')"><div class="nav-icon-bg">💎</div>Токены</div>
+        <div class="nav-button" onclick="showModal('leaderModal')"><div class="nav-icon-bg">🏆</div>Лидеры</div>
+    </div>
+
+    <!-- Модалки -->
+    <div class="modal-overlay" id="upgradeModal">
+        <div class="modal-header">
+            <div class="modal-title">⚡ Прокачка Нажатий</div>
+            <div class="close-btn" onclick="showModal('none')">✕</div>
+        </div>
+        <div class="modal-list">
+            <div class="card-item">
+                <div>
+                    <div style="font-weight: 800; font-size: 14px;">Сила клика</div>
+                    <div style="font-size: 11px; color: var(--text-sub);">Текущий: +<span id="tapPwrVal">1</span> за тап</div>
+                </div>
+                <button class="item-btn" id="btnBuyTap" onclick="buyUpgrade('tap')">100 🪙</button>
+            </div>
+            <div class="card-item">
+                <div>
+                    <div style="font-weight: 800; font-size: 14px;">Автокликер</div>
+                    <div style="font-size: 11px; color: var(--text-sub);">Текущий: +<span id="autoPwrVal">0</span> / сек</div>
+                </div>
+                <button class="item-btn" id="btnBuyAuto" onclick="buyUpgrade('auto')">500 🪙</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="shopModal">
+        <div class="modal-header">
+            <div class="modal-title">⚡ Обмен Токенов TAPX</div>
+            <div class="close-btn" onclick="showModal('none')">✕</div>
+        </div>
+        <div class="modal-list">
+            <div class="card-item">
+                <div>
+                    <div style="font-weight: 800; font-size: 14px;">1 TAPX Token</div>
+                    <div style="font-size: 11px; color: var(--text-sub);">Обмен 10 Кристаллов</div>
+                </div>
+                <button class="item-btn" id="btnExchangeToken" onclick="buyToken()">10 💎</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="leaderModal">
+        <div class="modal-header">
+            <div class="modal-title">🏆 Список Лидеров</div>
+            <div class="close-btn" onclick="showModal('none')">✕</div>
+        </div>
+        <div class="modal-list" id="leaderList"></div>
+    </div>
+</div>
+
+<script>
+    const tg = window.Telegram?.WebApp;
+    if (tg) { tg.expand(); tg.ready(); }
+
+    // --- ЗВУКОВАЯ СИСТЕМА ---
+    let audioCtx = null;
+    let isSoundOn = false;
+    const bgMusic = document.getElementById('bgMusic');
+    bgMusic.volume = 0.25; // Расслабляющая тихая громкость
+
+    function playClickSound() {
+        if (!isSoundOn) return;
+        
+        if (!audioCtx) {
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        }
+        
+        // Синтез глубокого приятного клика (Web Audio API)
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(600, audioCtx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(120, audioCtx.currentTime + 0.04);
+        
+        gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.04);
+        
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.04);
+    }
+
+    function toggleAudio() {
+        isSoundOn = !isSoundOn;
+        const btn = document.getElementById('audioToggleBtn');
+        
+        if (isSoundOn) {
+            btn.innerText = '🔊';
+            bgMusic.play().catch(() => {});
+        } else {
+            btn.innerText = '🔇';
+            bgMusic.pause();
+        }
+    }
+
+    // Игровой процесс
+    const MILESTONES = [
+        { target: 1000000, gems: 1, label: "1M" },
+        { target: 5000000, gems: 2, label: "5M" },
+        { target: 10000000, gems: 3, label: "10M" },
+        { target: 50000000, gems: 4, label: "50M" },
+        { target: 100000000, gems: 5, label: "100M" },
+        { target: 500000000, gems: 6, label: "500M" },
+        { target: 1000000000, gems: 10, label: "1B" }
+    ];
+
+    let state = {
+        coins: 0,
+        totalEarned: 0,
+        gems: 0,
+        tokens: 0,
+        tapPower: 1,
+        passiveRate: 0,
+        milestoneIndex: 0,
+        costs: { tap: 100, auto: 500 }
+    };
+
+    function initTelegramUser() {
+        const user = tg?.initDataUnsafe?.user;
+        const nameDisplay = document.getElementById('userNameDisplay');
+        const avatarDisplay = document.getElementById('userAvatar');
+
+        if (user) {
+            nameDisplay.innerText = user.first_name;
+            if (user.photo_url) avatarDisplay.innerHTML = `<img src="${user.photo_url}">`;
+            else avatarDisplay.innerText = user.first_name[0].toUpperCase();
+        } else {
+            nameDisplay.innerText = "Игрок";
+        }
+    }
+
+    // 3D Canvas Монета
+    const canvas = document.getElementById('coinCanvas');
+    const ctx = canvas.getContext('2d');
+
+    function drawCoin() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        const cx = 115, cy = 115, r = 85;
+
+        let radGrad = ctx.createRadialGradient(cx, cy, 50, cx, cy, 105);
+        radGrad.addColorStop(0, 'rgba(245, 176, 0, 0.4)');
+        radGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+        ctx.fillStyle = radGrad;
+        ctx.beginPath(); ctx.arc(cx, cy, 105, 0, Math.PI * 2); ctx.fill();
+
+        ctx.fillStyle = '#8a5a00';
+        ctx.beginPath(); ctx.arc(cx, cy + 6, r, 0, Math.PI * 2); ctx.fill();
+
+        let goldGrad = ctx.createLinearGradient(cx - r, cy - r, cx + r, cy + r);
+        goldGrad.addColorStop(0, '#ffe566');
+        goldGrad.addColorStop(0.5, '#f5b000');
+        goldGrad.addColorStop(1, '#573b00');
+        ctx.fillStyle = goldGrad;
+        ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.fill();
+
+        ctx.strokeStyle = '#fff099'; ctx.lineWidth = 3;
+        ctx.beginPath(); ctx.arc(cx, cy, r - 10, 0, Math.PI * 2); ctx.stroke();
+
+        ctx.font = '900 80px "Permanent Marker", cursive';
+        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.fillStyle = '#261900'; ctx.fillText('X', cx + 2, cy + 4);
+        
+        let textGrad = ctx.createLinearGradient(cx - 30, cy - 30, cx + 30, cy + 30);
+        textGrad.addColorStop(0, '#ffffff'); textGrad.addColorStop(1, '#ffd700');
+        ctx.fillStyle = textGrad; ctx.fillText('X', cx, cy);
+    }
+    drawCoin();
+
+    // Клик
+    canvas.addEventListener('pointerdown', (e) => {
+        playClickSound();
+        addCoins(state.tapPower);
+
+        const num = document.createElement('div');
+        num.className = 'float-num';
+        num.innerText = `+${state.tapPower}`;
+        num.style.left = `${e.clientX - 15}px`;
+        num.style.top = `${e.clientY - 25}px`;
+        document.body.appendChild(num);
+        setTimeout(() => num.remove(), 800);
+
+        updateUI();
+    });
+
+    function addCoins(amount) {
+        state.coins += amount;
+        state.totalEarned += amount;
+        checkMilestones();
+    }
+
+    function checkMilestones() {
+        if (state.milestoneIndex < MILESTONES.length) {
+            let currentGoal = MILESTONES[state.milestoneIndex];
+            if (state.totalEarned >= currentGoal.target) {
+                state.gems += currentGoal.gems;
+                showToast(currentGoal.gems);
+                state.milestoneIndex++;
+            }
+        }
+    }
+
+    function showToast(gemsEarned) {
+        const toast = document.getElementById('toast');
+        document.getElementById('toastGems').innerText = gemsEarned;
+        toast.classList.add('show');
+        setTimeout(() => toast.classList.remove('show'), 2500);
+    }
+
+    function buyUpgrade(type) {
+        playClickSound();
+        if (type === 'tap' && state.coins >= state.costs.tap) {
+            state.coins -= state.costs.tap;
+            state.tapPower += 1;
+            state.costs.tap = Math.round(state.costs.tap * 2.2);
+        } else if (type === 'auto' && state.coins >= state.costs.auto) {
+            state.coins -= state.costs.auto;
+            state.passiveRate += 2;
+            state.costs.auto = Math.round(state.costs.auto * 2.4);
+        }
+        updateUI();
+    }
+
+    function buyToken() {
+        playClickSound();
+        if (state.gems >= 10) {
+            state.gems -= 10;
+            state.tokens += 1;
+            updateUI();
+        }
+    }
+
+    setInterval(() => {
+        if (state.passiveRate > 0) {
+            addCoins(state.passiveRate);
+            updateUI();
+        }
+    }, 1000);
+
+    function updateLeaderboard() {
+        const leaders = [
+            { name: "KingTap", coins: "1.2B" },
+            { name: "ShadowX", coins: "450M" },
+            { name: "CryptoMaster", coins: "80M" },
+            { name: (tg?.initDataUnsafe?.user?.first_name || "Вы"), coins: Math.floor(state.coins).toLocaleString() }
+        ];
+
+        let html = "";
+        leaders.forEach((l, i) => {
+            html += `<div class="card-item">
+                <div style="display:flex; align-items:center; gap:10px;">
+                    <div style="font-weight:900; color:var(--gold-main); width:20px;">#${i + 1}</div>
+                    <div style="font-weight:800; font-size:14px;">${l.name}</div>
+                </div>
+                <div style="font-weight:900; color:var(--gold-main);">${l.coins} 🪙</div>
+            </div>`;
+        });
+        document.getElementById('leaderList').innerHTML = html;
+    }
+
+    function updateUI() {
+        document.getElementById('coinsCount').innerText = Math.floor(state.coins).toLocaleString();
+        document.getElementById('gemsCount').innerText = state.gems;
+        document.getElementById('tokensCount').innerText = state.tokens;
+        document.getElementById('passiveRate').innerText = state.passiveRate;
+
+        if (state.milestoneIndex < MILESTONES.length) {
+            let currentGoal = MILESTONES[state.milestoneIndex];
+            let prevTarget = state.milestoneIndex > 0 ? MILESTONES[state.milestoneIndex - 1].target : 0;
+            let progress = ((state.totalEarned - prevTarget) / (currentGoal.target - prevTarget)) * 100;
+            
+            document.getElementById('milestoneFill').style.width = `${Math.min(100, Math.max(0, progress))}%`;
+            document.getElementById('nextGemsReward').innerText = currentGoal.gems;
+            document.getElementById('milestoneTargetText').innerText = currentGoal.label;
+        } else {
+            document.getElementById('milestoneFill').style.width = `100%`;
+            document.getElementById('milestoneTargetText').innerText = "MAX";
+        }
+
+        document.getElementById('tapPwrVal').innerText = state.tapPower;
+        document.getElementById('autoPwrVal').innerText = state.passiveRate;
+        document.getElementById('btnBuyTap').innerText = `${state.costs.tap.toLocaleString()} 🪙`;
+        document.getElementById('btnBuyAuto').innerText = `${state.costs.auto.toLocaleString()} 🪙`;
+        document.getElementById('btnBuyTap').disabled = state.coins < state.costs.tap;
+        document.getElementById('btnBuyAuto').disabled = state.coins < state.costs.auto;
+
+        document.getElementById('btnExchangeToken').disabled = state.gems < 10;
+    }
+
+    function showModal(id) {
+        playClickSound();
+        document.querySelectorAll('.modal-overlay').forEach(m => m.style.display = 'none');
+        document.querySelectorAll('.nav-button').forEach(b => b.classList.remove('active'));
+        
+        if (id !== 'none') {
+            document.getElementById(id).style.display = 'flex';
+            if (id === 'leaderModal') updateLeaderboard();
+        }
+    }
+
+    initTelegramUser();
+    updateUI();
+</script>
+</body>
+</html>
